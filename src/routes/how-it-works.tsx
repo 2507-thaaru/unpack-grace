@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight } from "lucide-react";
 
-import { AppShell, SectionHeading } from "@/components/app-shell";
-import { datasetsQuery, PASS_LABELS, passesQuery } from "@/lib/api";
+import { AppShell, SectionHeading, StateCard } from "@/components/app-shell";
+import { KnowledgeGraph } from "@/components/knowledge-graph";
+import { datasetsQuery, exceptionsQuery, passesQuery } from "@/lib/api";
+
 
 export const Route = createFileRoute("/how-it-works")({
   head: () => ({
