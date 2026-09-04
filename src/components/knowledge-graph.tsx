@@ -12,7 +12,7 @@ type LaidOutNode = {
   w: number;
   h: number;
   title: string;
-  subtitle?: string;
+  subtitle?: string | undefined;
   tone: Tone;
 };
 
@@ -54,7 +54,7 @@ function toneFor(node: ApiNode): Tone {
 }
 
 function splitLabel(label: string) {
-  const [title, ...rest] = label.split("\n");
+  const [title = "", ...rest] = label.split("\n");
   const subtitle = rest.join(" ").replace(/^\(|\)$/g, "").trim();
   return { title: title.trim(), subtitle: subtitle || undefined };
 }
@@ -117,11 +117,10 @@ export function KnowledgeGraph({ graph }: { graph: GraphResponse }) {
 
     const groupBands = CATEGORY_ORDER.filter(
       (c) => COLUMNS[c]?.label && (byCategory.get(c)?.length ?? 0) > 0,
-    ).map((c) => ({
-      label: COLUMNS[c].label!,
-      cx: COLUMNS[c].cx,
-      w: COLUMNS[c].w + 56,
-    }));
+    ).map((c) => {
+      const col = COLUMNS[c]!;
+      return { label: col.label!, cx: col.cx, w: col.w + 56 };
+    });
 
     return { nodes: laidOut, edges: links, height: totalH, groups: groupBands };
   }, [graph]);
