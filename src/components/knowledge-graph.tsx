@@ -134,7 +134,7 @@ export function KnowledgeGraph({ graph }: { graph: GraphResponse }) {
       <div className="relative overflow-x-auto p-4 sm:p-6">
         <svg
           viewBox={`0 0 ${VIEW_W} ${height}`}
-          className="h-auto w-full min-w-[980px]"
+          className="h-auto w-full min-w-[720px]"
           role="img"
           aria-label={`Live knowledge graph with ${nodes.length} nodes and ${edges.length} connections`}
         >
