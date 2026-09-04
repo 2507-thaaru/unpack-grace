@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { AppShell, SectionHeading, StateCard } from "@/components/app-shell";
 import { KnowledgeGraph } from "@/components/knowledge-graph";
-import { datasetsQuery, exceptionsQuery, passesQuery } from "@/lib/api";
+import { graphQuery } from "@/lib/api";
 
 
 export const Route = createFileRoute("/how-it-works")({
@@ -67,11 +67,7 @@ function HowItWorks() {
       ) : error ? (
         <StateCard>Could not reach the pipeline API: {(error as Error).message}</StateCard>
       ) : (
-        <KnowledgeGraph
-          datasets={datasets.data?.datasets ?? []}
-          passes={passes.data ?? []}
-          exceptions={exceptions.data?.exceptions ?? []}
-        />
+        <KnowledgeGraph graph={graph.data ?? { nodes: [], edges: [] }} />
       )}
 
 
