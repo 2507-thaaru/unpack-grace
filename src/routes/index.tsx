@@ -66,7 +66,6 @@ function Landing() {
       </header>
 
       <Hero
-        eyebrow="Razorpay AI Buildathon 2026 — Track 4"
         title="Explode a lumped settlement into ledger truth"
         subtitle="One NEFT credit hides hundreds of orders, MDR, GST on MDR, refunds, chargebacks and rolling reserve. This agent unpacks the lump sum, reconciles it order by order, and surfaces every exception worth money."
         ctaLabel="See the results"
