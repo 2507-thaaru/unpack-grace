@@ -1,35 +1,11 @@
 import { useMemo } from "react";
 
 import GatewayFlow from "@/components/ui/gateway-flow";
-import type { DatasetMeta, ExceptionRow, PassInfo } from "@/lib/api";
-import { PASS_LABELS } from "@/lib/api";
+import type { GraphEdge, GraphNode as ApiNode, GraphResponse } from "@/lib/api";
 
-/** Which source datasets feed which pass. Unknown names fall back to all passes. */
-const DATASET_TO_PASSES: Record<string, string[]> = {
-  settlement_report: [
-    "pass1_batch_match",
-    "pass2_order_validation",
-    "pass3_reserve_forecast",
-    "pass4_gst_itc",
-    "pass5_cross_period",
-  ],
-  bank_statement: ["pass1_batch_match"],
-  sales_ledger: ["pass2_order_validation", "pass5_cross_period"],
-  reserve_ledger: ["pass3_reserve_forecast"],
-  gst_invoice: ["pass4_gst_itc"],
-};
+type Tone = "source" | "pass" | "idle" | "exception" | "hub" | "report";
 
-/** Which pass raises which exception category. */
-const CATEGORY_TO_PASS: Record<string, string> = {
-  MISSING_UTR: "pass1_batch_match",
-  UNEXPLAINED_DEDUCTION: "pass1_batch_match",
-  MDR_RATE_MISMATCH: "pass2_order_validation",
-  RESERVE_NOT_RELEASED: "pass3_reserve_forecast",
-  GST_ITC_MISMATCH: "pass4_gst_itc",
-  CROSS_PERIOD_SETTLEMENT: "pass5_cross_period",
-};
-
-type Node = {
+type LaidOutNode = {
   id: string;
   x: number;
   y: number;
@@ -37,14 +13,16 @@ type Node = {
   h: number;
   title: string;
   subtitle?: string;
-  tone: "source" | "pass" | "exception" | "hub" | "report" | "idle";
+  tone: Tone;
 };
 
-const COLS = {
-  source: { cx: 150, w: 236 },
-  pass: { cx: 540, w: 224 },
-  exception: { cx: 930, w: 286 },
-  hub: { cx: 1180, w: 148 },
+const CATEGORY_ORDER = ["source_data", "pass", "exception_type", "orchestration", "report"];
+
+const COLUMNS: Record<string, { cx: number; w: number; label?: string }> = {
+  source_data: { cx: 150, w: 236, label: "Source data (this run)" },
+  pass: { cx: 540, w: 224, label: "Matching passes (live status)" },
+  exception_type: { cx: 930, w: 286, label: "Exceptions raised (live counts)" },
+  orchestration: { cx: 1180, w: 148 },
   report: { cx: 1372, w: 176 },
 };
 
@@ -53,24 +31,35 @@ const ROW_GAP = 96;
 const VIEW_W = 1480;
 const PAD_Y = 56;
 
-function column(
-  ids: { id: string; title: string; subtitle?: string; tone: Node["tone"] }[],
-  cx: number,
-  w: number,
-  totalH: number,
-): Node[] {
-  const height = ids.length * NODE_H + Math.max(0, ids.length - 1) * (ROW_GAP - NODE_H);
-  const start = (totalH - height) / 2;
-  return ids.map((n, i) => ({
-    ...n,
-    x: cx - w / 2,
-    y: start + i * ROW_GAP,
-    w,
-    h: NODE_H,
-  }));
+function toneFor(node: ApiNode): Tone {
+  switch (node.category) {
+    case "source_data":
+      return "source";
+    case "pass": {
+      const idle =
+        (node.exception_count ?? 0) === 0 &&
+        !!node.status &&
+        node.status.toLowerCase().includes("not");
+      return idle ? "idle" : "pass";
+    }
+    case "exception_type":
+      return "exception";
+    case "orchestration":
+      return "hub";
+    case "report":
+      return "report";
+    default:
+      return "idle";
+  }
 }
 
-function edge(from: Node, to: Node) {
+function splitLabel(label: string) {
+  const [title, ...rest] = label.split("\n");
+  const subtitle = rest.join(" ").replace(/^\(|\)$/g, "").trim();
+  return { title: title.trim(), subtitle: subtitle || undefined };
+}
+
+function edgePath(from: LaidOutNode, to: LaidOutNode) {
   const x1 = from.x + from.w;
   const y1 = from.y + from.h / 2;
   const x2 = to.x;
@@ -79,135 +68,63 @@ function edge(from: Node, to: Node) {
   return `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
 }
 
-export function KnowledgeGraph({
-  datasets,
-  passes,
-  exceptions,
-}: {
-  datasets: DatasetMeta[];
-  passes: PassInfo[];
-  exceptions: ExceptionRow[];
-}) {
-  const { nodes, edges, height, totalExceptions } = useMemo(() => {
-    const categoryCounts = new Map<string, number>();
-    for (const e of exceptions) {
-      categoryCounts.set(e.category, (categoryCounts.get(e.category) ?? 0) + 1);
+export function KnowledgeGraph({ graph }: { graph: GraphResponse }) {
+  const { nodes, edges, height, groups } = useMemo(() => {
+    const byCategory = new Map<string, ApiNode[]>();
+    for (const n of graph.nodes ?? []) {
+      const key = CATEGORY_ORDER.includes(n.category) ? n.category : "pass";
+      const list = byCategory.get(key) ?? [];
+      list.push(n);
+      byCategory.set(key, list);
     }
-    const categories = [...categoryCounts.entries()].sort((a, b) => b[1] - a[1]);
 
-    const rows = Math.max(datasets.length, passes.length, categories.length, 1);
+    const rows = Math.max(1, ...[...byCategory.values()].map((l) => l.length));
     const totalH = rows * ROW_GAP - (ROW_GAP - NODE_H) + PAD_Y * 2;
     const inner = totalH - PAD_Y * 2;
 
-    const sourceNodes = column(
-      datasets.map((d) => ({
-        id: `src:${d.name}`,
-        title: `${d.name}.csv`,
-        subtitle: `${d.rows} rows`,
-        tone: "source" as const,
-      })),
-      COLS.source.cx,
-      COLS.source.w,
-      inner,
-    );
-
-    const passNodes = column(
-      passes.map((p, i) => ({
-        id: `pass:${p.pass_name}`,
-        title: `Pass ${i + 1} · ${PASS_LABELS[p.pass_name] ?? p.pass_name.replace(/_/g, " ")}`,
-        subtitle:
-          p.status && p.status.toLowerCase() !== "implemented" && p.exception_count === 0
-            ? p.status.replace(/_/g, " ")
-            : `${p.exception_count} found`,
-        tone:
-          p.status && p.status.toLowerCase().includes("not")
-            ? ("idle" as const)
-            : ("pass" as const),
-      })),
-      COLS.pass.cx,
-      COLS.pass.w,
-      inner,
-    );
-
-    const exceptionNodes = column(
-      categories.map(([cat, n]) => ({
-        id: `exc:${cat}`,
-        title: cat,
-        subtitle: `${n} raised`,
-        tone: "exception" as const,
-      })),
-      COLS.exception.cx,
-      COLS.exception.w,
-      inner,
-    );
-
-    const total = exceptions.length;
-    const hub: Node = {
-      id: "hub",
-      x: COLS.hub.cx - COLS.hub.w / 2,
-      y: inner / 2 - NODE_H / 2,
-      w: COLS.hub.w,
-      h: NODE_H,
-      title: "Orchestrator",
-      tone: "hub",
-    };
-    const report: Node = {
-      id: "report",
-      x: COLS.report.cx - COLS.report.w / 2,
-      y: inner / 2 - NODE_H / 2,
-      w: COLS.report.w,
-      h: NODE_H,
-      title: "Report",
-      subtitle: `${total} total exceptions`,
-      tone: "report",
-    };
-
-    const byId = new Map<string, Node>();
-    for (const n of [...sourceNodes, ...passNodes, ...exceptionNodes, hub, report]) {
-      byId.set(n.id, n);
+    const laidOut: LaidOutNode[] = [];
+    for (const category of CATEGORY_ORDER) {
+      const list = byCategory.get(category) ?? [];
+      const col = COLUMNS[category];
+      if (!col || list.length === 0) continue;
+      const blockH = list.length * NODE_H + Math.max(0, list.length - 1) * (ROW_GAP - NODE_H);
+      const start = (inner - blockH) / 2;
+      list.forEach((n, i) => {
+        const { title, subtitle } = splitLabel(n.label ?? n.id);
+        laidOut.push({
+          id: n.id,
+          title,
+          subtitle,
+          tone: toneFor(n),
+          x: col.cx - col.w / 2,
+          y: start + i * ROW_GAP,
+          w: col.w,
+          h: NODE_H,
+        });
+      });
     }
 
-    const links: { d: string; kind: "flow" | "raise" | "hub" }[] = [];
-    const passIds = passes.map((p) => p.pass_name);
+    const byId = new Map(laidOut.map((n) => [n.id, n]));
+    const kindOf = (from: LaidOutNode) =>
+      from.tone === "source" ? "flow" : from.tone === "pass" || from.tone === "idle" ? "raise" : "hub";
 
-    for (const d of datasets) {
-      const targets = DATASET_TO_PASSES[d.name] ?? passIds;
-      for (const t of targets) {
-        const from = byId.get(`src:${d.name}`);
-        const to = byId.get(`pass:${t}`);
-        if (from && to) links.push({ d: edge(from, to), kind: "flow" });
-      }
-    }
+    const links = ((graph.edges ?? []) as GraphEdge[]).flatMap((e) => {
+      const from = byId.get(e.from);
+      const to = byId.get(e.to);
+      if (!from || !to) return [];
+      return [{ d: edgePath(from, to), kind: kindOf(from) as "flow" | "raise" | "hub" }];
+    });
 
-    for (const [cat] of categories) {
-      const passId = CATEGORY_TO_PASS[cat];
-      const from = passId ? byId.get(`pass:${passId}`) : undefined;
-      const to = byId.get(`exc:${cat}`);
-      if (from && to) links.push({ d: edge(from, to), kind: "raise" });
-      if (to) links.push({ d: edge(to, hub), kind: "hub" });
-    }
+    const groupBands = CATEGORY_ORDER.filter(
+      (c) => COLUMNS[c]?.label && (byCategory.get(c)?.length ?? 0) > 0,
+    ).map((c) => ({
+      label: COLUMNS[c].label!,
+      cx: COLUMNS[c].cx,
+      w: COLUMNS[c].w + 56,
+    }));
 
-    for (const p of passes) {
-      const from = byId.get(`pass:${p.pass_name}`);
-      const hasCategory = categories.some(([c]) => CATEGORY_TO_PASS[c] === p.pass_name);
-      if (from && !hasCategory) links.push({ d: edge(from, hub), kind: "hub" });
-    }
-
-    links.push({ d: edge(hub, report), kind: "hub" });
-
-    return {
-      nodes: [...sourceNodes, ...passNodes, ...exceptionNodes, hub, report],
-      edges: links,
-      height: totalH,
-      totalExceptions: total,
-    };
-  }, [datasets, passes, exceptions]);
-
-  const groups: { label: string; cx: number; w: number }[] = [
-    { label: "Source data (this run)", cx: COLS.source.cx, w: COLS.source.w + 56 },
-    { label: "Matching passes (live status)", cx: COLS.pass.cx, w: COLS.pass.w + 56 },
-    { label: "Exceptions raised (live counts)", cx: COLS.exception.cx, w: COLS.exception.w + 56 },
-  ];
+    return { nodes: laidOut, edges: links, height: totalH, groups: groupBands };
+  }, [graph]);
 
   return (
     <div className="panel relative overflow-hidden">
@@ -220,7 +137,7 @@ export function KnowledgeGraph({
           viewBox={`0 0 ${VIEW_W} ${height}`}
           className="h-auto w-full min-w-[980px]"
           role="img"
-          aria-label={`Live knowledge graph: ${datasets.length} source files feeding ${nodes.length} nodes and ${totalExceptions} exceptions`}
+          aria-label={`Live knowledge graph with ${nodes.length} nodes and ${edges.length} connections`}
         >
           <defs>
             <marker
@@ -268,9 +185,9 @@ export function KnowledgeGraph({
                 markerEnd="url(#kg-arrow)"
                 className={
                   e.kind === "flow"
-                    ? "stroke-primary/35"
+                    ? "stroke-foreground/35"
                     : e.kind === "raise"
-                      ? "stroke-warning/50"
+                      ? "stroke-foreground/55"
                       : "stroke-muted-foreground/35"
                 }
                 strokeDasharray="7 9"
@@ -293,24 +210,23 @@ export function KnowledgeGraph({
       </div>
 
       <p className="relative border-t border-border px-6 py-4 text-xs leading-relaxed text-muted-foreground">
-        Generated live from the current run — node labels, row counts and exception totals all come
-        from the pipeline API, not a static diagram. Amber nodes mean that pass flagged something;
-        muted nodes mean the pass reported nothing to raise.
+        Rendered live from <span className="font-mono">/api/graph</span> — every node, edge, row
+        count and exception total comes from the current pipeline run, not a static diagram.
       </p>
     </div>
   );
 }
 
-function GraphNode({ node }: { node: Node }) {
+function GraphNode({ node }: { node: LaidOutNode }) {
   const tone = {
     source: {
-      box: "fill-primary/10 stroke-primary/45",
+      box: "fill-foreground/[0.06] stroke-foreground/35",
       title: "fill-foreground",
       sub: "fill-muted-foreground",
       rx: 30,
     },
     pass: {
-      box: "fill-primary/20 stroke-primary/60",
+      box: "fill-foreground/[0.14] stroke-foreground/60",
       title: "fill-foreground",
       sub: "fill-muted-foreground",
       rx: 14,
@@ -322,7 +238,7 @@ function GraphNode({ node }: { node: Node }) {
       rx: 14,
     },
     exception: {
-      box: "fill-warning/20 stroke-warning/60",
+      box: "fill-foreground/[0.09] stroke-foreground/45",
       title: "fill-foreground",
       sub: "fill-muted-foreground",
       rx: 10,
@@ -334,7 +250,7 @@ function GraphNode({ node }: { node: Node }) {
       rx: 16,
     },
     report: {
-      box: "fill-success/25 stroke-success/70",
+      box: "fill-foreground/[0.18] stroke-foreground/70",
       title: "fill-foreground",
       sub: "fill-muted-foreground",
       rx: 16,
