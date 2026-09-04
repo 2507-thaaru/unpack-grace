@@ -2,6 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { AppShell, SectionHeading, StateCard } from "@/components/app-shell";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { KnowledgeGraph } from "@/components/knowledge-graph";
 import { graphQuery } from "@/lib/api";
 
@@ -73,16 +79,22 @@ function HowItWorks() {
 
       <div className="mt-10">
         <SectionHeading>The maths behind each pass</SectionHeading>
-        <div className="space-y-3">
+        <Accordion type="single" collapsible className="space-y-3">
           {MATH.map((m) => (
-            <details key={m.title} className="panel group p-5">
-              <summary className="cursor-pointer list-none text-sm font-medium text-foreground">
+            <AccordionItem
+              key={m.title}
+              value={m.title}
+              className="panel overflow-hidden rounded-xl border border-border bg-background/50 px-5 transition-colors duration-200 hover:bg-muted/60 data-[state=open]:bg-muted/80 data-[state=open]:border-foreground/20"
+            >
+              <AccordionTrigger className="text-sm font-medium text-foreground hover:no-underline [&[data-state=open]>svg]:text-foreground">
                 {m.title}
-              </summary>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{m.body}</p>
-            </details>
+              </AccordionTrigger>
+              <AccordionContent>
+                <p className="text-sm leading-relaxed text-muted-foreground">{m.body}</p>
+              </AccordionContent>
+            </AccordionItem>
           ))}
-        </div>
+        </Accordion>
       </div>
     </AppShell>
   );
