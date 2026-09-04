@@ -38,11 +38,16 @@ Four KPI tiles, five pass-status cards, horizontal bar chart of exceptions by ca
 All numbers come from your backend — nothing hardcoded. A single typed data layer:
 
 - API base URL read from an environment variable, so preview and production can point at different backends.
-- Endpoints assumed (adjust to match yours): run summary, source-file previews, pass status, exceptions list, reserve forecast.
 - TanStack Query for fetching, with skeleton loading states and a clear error state per page instead of a blank screen.
-- Until the backend URL is supplied, the app renders the loading/error states correctly and I'll ship a small fixture file matching your screenshot data so pages are reviewable.
+- Until a reachable backend URL exists, the app renders correctly against a fixture file matching your screenshot/PDF data, and flips to live data the moment the URL is set.
 
-**I need from you:** the backend base URL and the endpoint paths (or a sample JSON response). Drop them in chat and I'll wire the exact shapes; otherwise I'll build against the assumed shapes above and adjust after.
+**On `http://localhost:8000/redoc`:** that address only exists on your machine — this build environment can't reach it, and neither can the deployed site. Two ways forward:
+
+1. Paste the contents of `http://localhost:8000/openapi.json` into chat (best — I'll generate exact typed clients for every endpoint), or
+2. Expose the backend on a public URL (ngrok / cloud deploy) and give me that base URL.
+
+Either way I can start the UI now and wire the real shapes as soon as one of those lands.
+
 
 ## Technical notes
 
