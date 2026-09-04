@@ -51,12 +51,10 @@ const MATH: { title: string; body: string }[] = [
 ];
 
 function HowItWorks() {
-  const passes = useQuery(passesQuery());
-  const datasets = useQuery(datasetsQuery());
-  const exceptions = useQuery(exceptionsQuery());
+  const graph = useQuery(graphQuery());
 
-  const loading = passes.isLoading || datasets.isLoading || exceptions.isLoading;
-  const error = passes.error ?? datasets.error ?? exceptions.error;
+  const loading = graph.isLoading;
+  const error = graph.error;
 
   return (
     <AppShell
