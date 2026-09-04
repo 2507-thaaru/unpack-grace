@@ -74,6 +74,32 @@ export const exceptionsQuery = () =>
     queryFn: () => api<ExceptionsResponse>("exceptions"),
   });
 
+export type GraphNode = {
+  id: string;
+  label: string;
+  category: "source_data" | "pass" | "exception_type" | "orchestration" | "report" | string;
+  status?: string | null;
+  rows?: number | null;
+  count?: number | null;
+  exception_count?: number | null;
+  color?: string | null;
+  borderColor?: string | null;
+  fontColor?: string | null;
+  shape?: string | null;
+};
+
+export type GraphEdge = { from: string; to: string; label?: string | null };
+
+export type GraphResponse = {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  total_nodes?: number;
+  total_edges?: number;
+};
+
+export const graphQuery = () =>
+  queryOptions({ queryKey: ["graph"], queryFn: () => api<GraphResponse>("graph") });
+
 export const datasetsQuery = () =>
   queryOptions({ queryKey: ["datasets"], queryFn: () => api<DatasetsResponse>("data") });
 
