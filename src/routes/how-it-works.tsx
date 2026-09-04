@@ -93,11 +93,3 @@ function HowItWorks() {
     </AppShell>
   );
 }
-
-function Arrow() {
-  return (
-    <div className="hidden items-center justify-center lg:flex">
-      <ArrowRight className="size-5 text-muted-foreground" />
-    </div>
-  );
-}
