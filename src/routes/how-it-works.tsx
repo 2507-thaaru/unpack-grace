@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight } from "lucide-react";
 
-import { AppShell, SectionHeading } from "@/components/app-shell";
-import { datasetsQuery, PASS_LABELS, passesQuery } from "@/lib/api";
+import { AppShell, SectionHeading, StateCard } from "@/components/app-shell";
+import { KnowledgeGraph } from "@/components/knowledge-graph";
+import { datasetsQuery, exceptionsQuery, passesQuery } from "@/lib/api";
+
 
 export const Route = createFileRoute("/how-it-works")({
   head: () => ({
@@ -52,81 +53,29 @@ const MATH: { title: string; body: string }[] = [
 function HowItWorks() {
   const passes = useQuery(passesQuery());
   const datasets = useQuery(datasetsQuery());
+  const exceptions = useQuery(exceptionsQuery());
+
+  const loading = passes.isLoading || datasets.isLoading || exceptions.isLoading;
+  const error = passes.error ?? datasets.error ?? exceptions.error;
 
   return (
     <AppShell
       title="How It Works"
-      description="Source files flow through five passes into a single exception register"
+      description="Data flow, and exactly how each number is calculated — from the current run"
     >
-      <div className="grid gap-4 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-stretch">
-        <div className="panel p-6">
-          <SectionHeading>Source files</SectionHeading>
-          <ul className="space-y-2">
-            {(datasets.data?.datasets ?? []).map((d) => (
-              <li
-                key={d.name}
-                className="flex items-center justify-between rounded-lg border border-border bg-background/40 px-3 py-2 text-xs"
-              >
-                <span className="text-foreground">{d.name.replace(/_/g, " ")}</span>
-                <span className="font-mono text-muted-foreground">{d.rows}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <SectionHeading>Knowledge graph</SectionHeading>
+      {loading ? (
+        <StateCard>Building the graph from the current run…</StateCard>
+      ) : error ? (
+        <StateCard>Could not reach the pipeline API: {(error as Error).message}</StateCard>
+      ) : (
+        <KnowledgeGraph
+          datasets={datasets.data?.datasets ?? []}
+          passes={passes.data ?? []}
+          exceptions={exceptions.data?.exceptions ?? []}
+        />
+      )}
 
-        <Arrow />
-
-        <div className="panel p-6">
-          <SectionHeading>Five passes</SectionHeading>
-          <ul className="space-y-2">
-            {(passes.data ?? []).map((p, i) => (
-              <li
-                key={p.pass_name}
-                className="rounded-lg border border-border bg-background/40 px-3 py-2"
-              >
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-foreground">
-                    <span className="mr-2 font-mono text-primary">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    {PASS_LABELS[p.pass_name] ?? p.pass_name.replace(/_/g, " ")}
-                  </span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] ${
-                      p.exception_count === 0
-                        ? "bg-emerald-500/15 text-emerald-500"
-                        : "bg-amber-500/15 text-amber-500"
-                    }`}
-                  >
-                    {p.exception_count}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <Arrow />
-
-        <div className="panel p-6">
-          <SectionHeading>Outputs</SectionHeading>
-          <div className="space-y-2 text-xs text-muted-foreground">
-            <p className="rounded-lg border border-border bg-background/40 px-3 py-2 text-foreground">
-              Exception register
-            </p>
-            <p className="rounded-lg border border-border bg-background/40 px-3 py-2 text-foreground">
-              Reserve release forecast
-            </p>
-            <p className="rounded-lg border border-border bg-background/40 px-3 py-2 text-foreground">
-              Ledger-ready batch explosion
-            </p>
-            <p className="pt-2 leading-relaxed">
-              The orchestrator runs all five passes over the same exploded batch data on every
-              invocation of <span className="font-mono">POST /api/run</span>.
-            </p>
-          </div>
-        </div>
-      </div>
 
       <div className="mt-10">
         <SectionHeading>The maths behind each pass</SectionHeading>
@@ -142,13 +91,5 @@ function HowItWorks() {
         </div>
       </div>
     </AppShell>
-  );
-}
-
-function Arrow() {
-  return (
-    <div className="hidden items-center justify-center lg:flex">
-      <ArrowRight className="size-5 text-muted-foreground" />
-    </div>
   );
 }
