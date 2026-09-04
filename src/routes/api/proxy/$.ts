@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const DEFAULT_BASE = "https://contractor-tree-segment-healing.trycloudflare.com";
+const DEFAULT_BASE = "https://integrate-activated-graph-void.trycloudflare.com";
 
 function baseUrl() {
   return (process.env["SETTLEMENT_API_URL"] ?? DEFAULT_BASE).replace(/\/$/, "");
