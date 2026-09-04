@@ -1,14 +1,34 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const DEFAULT_BASE = "https://integrate-activated-graph-void.trycloudflare.com";
-
+// SETTLEMENT_API_URL is the single source of truth for the backend base URL.
+// Set it as a project secret in production, or in a git-ignored .env.local for
+// local development (see .env.example). There is deliberately no fallback URL.
 function baseUrl() {
-  return (process.env["SETTLEMENT_API_URL"] ?? DEFAULT_BASE).replace(/\/$/, "");
+  const configured = process.env["SETTLEMENT_API_URL"]?.trim();
+  if (!configured) {
+    throw new Error(
+      "SETTLEMENT_API_URL is not configured. Set it to the pipeline backend base URL (e.g. https://your-backend-url.example.com).",
+    );
+  }
+  return configured.replace(/\/$/, "");
 }
 
 async function forward(request: Request, splat: string | undefined) {
+  let base: string;
+  try {
+    base = baseUrl();
+  } catch (error) {
+    return Response.json(
+      {
+        error: "backend_not_configured",
+        message: error instanceof Error ? error.message : "SETTLEMENT_API_URL is not configured",
+      },
+      { status: 503 },
+    );
+  }
+
   const incoming = new URL(request.url);
-  const target = `${baseUrl()}/api/${splat ?? ""}${incoming.search}`;
+  const target = `${base}/api/${splat ?? ""}${incoming.search}`;
   const body = request.method === "POST" ? await request.text() : undefined;
 
   let lastError: unknown;
