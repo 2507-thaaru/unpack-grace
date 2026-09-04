@@ -66,6 +66,7 @@ function Landing() {
       </header>
 
       <Hero
+        eyebrow=""
         title="Explode a lumped settlement into ledger truth"
         subtitle="One NEFT credit hides hundreds of orders, MDR, GST on MDR, refunds, chargebacks and rolling reserve. This agent unpacks the lump sum, reconciles it order by order, and surfaces every exception worth money."
         ctaLabel="See the results"
