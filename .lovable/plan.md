@@ -33,20 +33,24 @@ Three-column flow — source files → five passes → exception types → orche
 ### Results Dashboard
 Four KPI tiles, five pass-status cards, horizontal bar chart of exceptions by category, reserve release forecast chart, and the exception table with category filter chips, search, and CSV export.
 
-## Backend wiring
+## Backend wiring (verified live)
 
-All numbers come from your backend — nothing hardcoded. A single typed data layer:
+I reached your Cloudflare tunnel and sampled every endpoint — the real shapes are confirmed, so nothing is hardcoded:
 
-- API base URL read from an environment variable, so preview and production can point at different backends.
-- TanStack Query for fetching, with skeleton loading states and a clear error state per page instead of a blank screen.
-- Until a reachable backend URL exists, the app renders correctly against a fixture file matching your screenshot/PDF data, and flips to live data the moment the URL is set.
+| Endpoint | Feeds |
+| --- | --- |
+| `GET /api/summary` | KPI cards: 5/5 passes, 17 exceptions, 25 batches, 120 orders, 25 bank credits |
+| `GET /api/passes` | Five pass cards with `status`, `exception_count`, and per-pass `metrics` |
+| `GET /api/forecast` | Reserve chart: total held / released / still held + `forecast_schedule` |
+| `GET /api/exceptions` | Exception table: settlement_id, order_id, category, description, amount |
+| `GET /api/data` + `/api/data/{name}` | Raw Data Explorer tabs with paging (offset/limit) |
+| `POST /api/run` | "Re-run pipeline" button |
 
-**On `http://localhost:8000/redoc`:** that address only exists on your machine — this build environment can't reach it, and neither can the deployed site. Two ways forward:
+- Requests go through a thin server route in this app (`/api/proxy/*`) that forwards to the tunnel. This keeps the tunnel URL in one env var, survives tunnel restarts with a one-line change, and avoids any mixed-content or CORS surprises on the published site.
+- TanStack Query with skeleton loading, per-card error states, and a manual refresh; the pass metrics also drive the How It Works diagram's live node colors and counts.
+- Re-run pipeline triggers `POST /api/run`, shows progress, then invalidates every query so all pages refresh.
+- Note: a `trycloudflare.com` tunnel URL changes each time you restart it — when it does, send me the new one (or set it as a secret) and everything reconnects.
 
-1. Paste the contents of `http://localhost:8000/openapi.json` into chat (best — I'll generate exact typed clients for every endpoint), or
-2. Expose the backend on a public URL (ngrok / cloud deploy) and give me that base URL.
-
-Either way I can start the UI now and wire the real shapes as soon as one of those lands.
 
 
 ## Technical notes
