@@ -2,6 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 
 import { AppShell, SectionHeading, StateCard } from "@/components/app-shell";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { KnowledgeGraph } from "@/components/knowledge-graph";
 import { graphQuery } from "@/lib/api";
 
