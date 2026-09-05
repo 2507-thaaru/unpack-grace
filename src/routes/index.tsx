@@ -82,6 +82,10 @@ function Landing() {
       />
 
       <section className="mx-auto max-w-6xl px-6 pb-24">
+        <div className="mb-6">
+          <UploadPanel />
+        </div>
+
         <div className="grid gap-6 md:grid-cols-2">
           <article className="panel p-7">
             <h2 className="text-xl font-semibold text-foreground">The problem</h2>
