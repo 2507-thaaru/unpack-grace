@@ -171,15 +171,27 @@ export function UploadPanel() {
         </ul>
       )}
 
-      <button
-        type="button"
-        disabled={files.length === 0 || upload.isPending}
-        onClick={() => upload.mutate(files)}
-        className="mt-6 inline-flex items-center gap-2 rounded-full border border-border bg-foreground px-6 py-2.5 text-sm font-medium text-background transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        {upload.isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-        {upload.isPending ? "Uploading…" : "Upload & run pipeline"}
-      </button>
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          disabled={files.length === 0 || upload.isPending}
+          onClick={() => upload.mutate(files)}
+          className="inline-flex items-center gap-2 rounded-full border border-border bg-foreground px-6 py-2.5 text-sm font-medium text-background transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {upload.isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          {upload.isPending ? "Uploading…" : "Upload & run pipeline"}
+        </button>
+        <button
+          type="button"
+          disabled={reset.isPending}
+          onClick={() => reset.mutate()}
+          className="inline-flex items-center gap-2 rounded-full border border-border px-6 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {reset.isPending ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
+          Reset to demo data
+        </button>
+      </div>
+
     </div>
   );
 }
