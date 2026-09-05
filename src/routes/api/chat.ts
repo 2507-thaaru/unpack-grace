@@ -46,10 +46,17 @@ export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const apiKey = process.env["LOVABLE_API_KEY"];
-        if (!apiKey) {
+        const lovableKey = process.env["LOVABLE_API_KEY"];
+        const geminiKey =
+          process.env["GEMINI_API_KEY"] ?? process.env["GOOGLE_API_KEY"] ?? undefined;
+        const openaiKey = process.env["OPENAI_API_KEY"];
+
+        if (!lovableKey && !geminiKey && !openaiKey) {
           return Response.json(
-            { error: "AI is not configured on this deployment." },
+            {
+              error:
+                "AI is not configured on this deployment. Add a GEMINI_API_KEY (or OPENAI_API_KEY) environment variable and redeploy.",
+            },
             { status: 500 },
           );
         }
@@ -67,28 +74,40 @@ export const Route = createFileRoute("/api/chat")({
 
         const context = await buildContext();
 
-        const upstream = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const systemPrompt = [
+          "You are the Settlement Unpacking Agent assistant. You answer questions about the current reconciliation run: settlement batches, orders, MDR, GST on MDR, refunds, chargebacks, rolling reserve, exceptions and the five pipeline passes.",
+          "Answer only from the run data below plus general Indian payments/GST knowledge. If the data does not contain the answer, say so plainly.",
+          "Be concise (usually under 120 words), quote exact figures with ₹ where relevant, and use short plain-text lists rather than markdown tables.",
+          "",
+          "CURRENT RUN DATA:",
+          context,
+        ].join("\n");
+
+        // Provider selection: Lovable gateway (Lovable hosting) -> Gemini -> OpenAI.
+        let endpoint: string;
+        let headers: Record<string, string>;
+        let model: string;
+
+        if (lovableKey) {
+          endpoint = "https://ai.gateway.lovable.dev/v1/chat/completions";
+          headers = { "content-type": "application/json", "Lovable-API-Key": lovableKey };
+          model = "google/gemini-3.7-flash";
+        } else if (geminiKey) {
+          endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+          headers = { "content-type": "application/json", authorization: `Bearer ${geminiKey}` };
+          model = "gemini-2.0-flash";
+        } else {
+          endpoint = "https://api.openai.com/v1/chat/completions";
+          headers = { "content-type": "application/json", authorization: `Bearer ${openaiKey}` };
+          model = "gpt-4o-mini";
+        }
+
+        const upstream = await fetch(endpoint, {
           method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "Lovable-API-Key": apiKey,
-          },
+          headers,
           body: JSON.stringify({
-            model: "google/gemini-3.7-flash",
-            messages: [
-              {
-                role: "system",
-                content: [
-                  "You are the Settlement Unpacking Agent assistant. You answer questions about the current reconciliation run: settlement batches, orders, MDR, GST on MDR, refunds, chargebacks, rolling reserve, exceptions and the five pipeline passes.",
-                  "Answer only from the run data below plus general Indian payments/GST knowledge. If the data does not contain the answer, say so plainly.",
-                  "Be concise (usually under 120 words), quote exact figures with ₹ where relevant, and use short plain-text lists rather than markdown tables.",
-                  "",
-                  "CURRENT RUN DATA:",
-                  context,
-                ].join("\n"),
-              },
-              ...messages,
-            ],
+            model,
+            messages: [{ role: "system", content: systemPrompt }, ...messages],
           }),
         });
 
@@ -112,3 +131,4 @@ export const Route = createFileRoute("/api/chat")({
     },
   },
 });
+
