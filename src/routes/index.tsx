@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { Hero } from "@/components/ui/hero-1";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UploadPanel } from "@/components/upload-panel";
 import { summaryQuery } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
