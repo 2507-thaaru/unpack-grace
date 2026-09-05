@@ -29,7 +29,8 @@ async function forward(request: Request, splat: string | undefined) {
 
   const incoming = new URL(request.url);
   const target = `${base}/api/${splat ?? ""}${incoming.search}`;
-  const body = request.method === "POST" ? await request.text() : undefined;
+  const body = request.method === "POST" ? await request.arrayBuffer() : undefined;
+  const contentType = request.headers.get("content-type");
 
   let lastError: unknown;
   // Cloudflare quick tunnels drop briefly when restarted — retry before failing.
