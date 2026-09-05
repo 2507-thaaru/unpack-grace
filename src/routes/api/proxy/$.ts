@@ -38,7 +38,10 @@ async function forward(request: Request, splat: string | undefined) {
     try {
       const upstream = await fetch(target, {
         method: request.method,
-        headers: { accept: "application/json" },
+        headers: {
+          accept: "application/json",
+          ...(contentType ? { "content-type": contentType } : {}),
+        },
         ...(body === undefined ? {} : { body }),
       });
       if (upstream.status >= 500 && attempt < 2) {
