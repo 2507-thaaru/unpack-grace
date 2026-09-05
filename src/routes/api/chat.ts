@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { getBackendBaseUrl } from "@/lib/backend-url";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 function baseUrl() {
-  const configured = process.env["SETTLEMENT_API_URL"]?.trim();
-  return configured ? configured.replace(/\/$/, "") : null;
+  return getBackendBaseUrl();
 }
+
 
 async function grab(base: string, path: string) {
   try {

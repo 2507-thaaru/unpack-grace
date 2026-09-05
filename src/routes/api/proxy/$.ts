@@ -1,36 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { getBackendBaseUrl } from "@/lib/backend-url";
 
-// SETTLEMENT_API_URL is the single source of truth for the backend base URL.
-// Set it as a project secret in production, or in a git-ignored .env.local for
-// local development (see .env.example). There is deliberately no fallback URL.
+// The backend base URL resolves from env vars (SETTLEMENT_API_URL and friends)
+// and falls back to the deployed Render backend, so a host that is missing the
+// env var still reaches production instead of failing with 503.
 function baseUrl() {
-  const configured = process.env["SETTLEMENT_API_URL"]?.trim();
-  if (!configured) {
-    throw new Error(
-      "SETTLEMENT_API_URL is not configured. Set it to the pipeline backend base URL (e.g. https://your-backend-url.example.com).",
-    );
-  }
-  return configured.replace(/\/$/, "");
+  return getBackendBaseUrl();
 }
 
 async function forward(request: Request, splat: string | undefined) {
-  let base: string;
-  try {
-    base = baseUrl();
-  } catch (error) {
-    return Response.json(
-      {
-        error: "backend_not_configured",
-        message: error instanceof Error ? error.message : "SETTLEMENT_API_URL is not configured",
-      },
-      { status: 503 },
-    );
-  }
+  const base = baseUrl();
 
   const incoming = new URL(request.url);
-  const target = `${base}/api/${splat ?? ""}${incoming.search}`;
+  const path = splat ?? "";
+  // The backend exposes health at /health, everything else under /api/*.
+  const target =
+    path === "health"
+      ? `${base}/health${incoming.search}`
+      : `${base}/api/${path}${incoming.search}`;
   const body = request.method === "POST" ? await request.arrayBuffer() : undefined;
   const contentType = request.headers.get("content-type");
+
 
   let lastError: unknown;
   // Cloudflare quick tunnels drop briefly when restarted — retry before failing.
