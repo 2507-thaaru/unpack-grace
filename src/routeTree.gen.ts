@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as InputDataRouteImport } from './routes/input-data'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiProxySplatRouteImport } from './routes/api/proxy/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -35,6 +36,11 @@ const InputDataRoute = InputDataRouteImport.update({
   path: '/input-data',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiProxySplatRoute = ApiProxySplatRouteImport.update({
   id: '/api/proxy/$',
   path: '/api/proxy/$',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/how-it-works': typeof HowItWorksRoute
   '/input-data': typeof InputDataRoute
+  '/api/chat': typeof ApiChatRoute
   '/api/proxy/$': typeof ApiProxySplatRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/how-it-works': typeof HowItWorksRoute
   '/input-data': typeof InputDataRoute
+  '/api/chat': typeof ApiChatRoute
   '/api/proxy/$': typeof ApiProxySplatRoute
 }
 export interface FileRoutesById {
@@ -61,20 +69,33 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/how-it-works': typeof HowItWorksRoute
   '/input-data': typeof InputDataRoute
+  '/api/chat': typeof ApiChatRoute
   '/api/proxy/$': typeof ApiProxySplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/dashboard' | '/how-it-works' | '/input-data' | '/api/proxy/$'
+    | '/'
+    | '/dashboard'
+    | '/how-it-works'
+    | '/input-data'
+    | '/api/chat'
+    | '/api/proxy/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/how-it-works' | '/input-data' | '/api/proxy/$'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/how-it-works'
+    | '/input-data'
+    | '/api/chat'
+    | '/api/proxy/$'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
     | '/how-it-works'
     | '/input-data'
+    | '/api/chat'
     | '/api/proxy/$'
   fileRoutesById: FileRoutesById
 }
@@ -83,6 +104,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   HowItWorksRoute: typeof HowItWorksRoute
   InputDataRoute: typeof InputDataRoute
+  ApiChatRoute: typeof ApiChatRoute
   ApiProxySplatRoute: typeof ApiProxySplatRoute
 }
 
@@ -116,6 +138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InputDataRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/proxy/$': {
       id: '/api/proxy/$'
       path: '/api/proxy/$'
@@ -131,6 +160,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   HowItWorksRoute: HowItWorksRoute,
   InputDataRoute: InputDataRoute,
+  ApiChatRoute: ApiChatRoute,
   ApiProxySplatRoute: ApiProxySplatRoute,
 }
 export const routeTree = rootRouteImport
