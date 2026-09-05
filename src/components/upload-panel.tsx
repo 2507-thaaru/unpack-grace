@@ -100,8 +100,9 @@ export function UploadPanel() {
       <h2 className="text-xl font-semibold text-foreground">Provide your own data</h2>
       <p className="mt-2 text-sm text-muted-foreground">
         Drop in your settlement report, bank statement, GST invoices, sales ledger or reserve
-        ledger. CSV, Excel and PDF are all accepted.
+        ledger. CSV, Excel, TXT and JSON are all accepted.
       </p>
+
 
       <div
         onDragOver={(e) => {
