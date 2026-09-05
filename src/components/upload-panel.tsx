@@ -129,7 +129,7 @@ export function UploadPanel() {
       >
         <Upload className="size-5 text-muted-foreground" aria-hidden />
         <p className="mt-3 text-sm text-foreground">Drag files here, or click to browse</p>
-        <p className="mt-1 text-xs text-muted-foreground">CSV · XLS · XLSX · PDF</p>
+        <p className="mt-1 text-xs text-muted-foreground">CSV · XLS · XLSX · TXT · JSON</p>
         <input
           ref={inputRef}
           type="file"
