@@ -1,12 +1,13 @@
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileSpreadsheet, FileText, Loader2, Upload, X } from "lucide-react";
+import { FileSpreadsheet, FileText, Loader2, RotateCcw, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
-const ACCEPT = ".csv,.xls,.xlsx,.pdf";
+const ACCEPT = ".csv,.xls,.xlsx,.txt,.json";
+const ALLOWED = /\.(csv|xls|xlsx|txt|json)$/i;
 
 function iconFor(name: string) {
-  return name.toLowerCase().endsWith(".pdf") ? FileText : FileSpreadsheet;
+  return /\.(txt|json)$/i.test(name) ? FileText : FileSpreadsheet;
 }
 
 function sizeOf(bytes: number) {
@@ -15,11 +16,35 @@ function sizeOf(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+type UploadResult = {
+  summary?: unknown;
+  passes?: unknown;
+  all_exceptions?: unknown;
+  graph?: { nodes?: unknown[]; edges?: unknown[] };
+  forecast?: unknown;
+};
+
 export function UploadPanel() {
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+
+  function applyResult(data: UploadResult) {
+    if (data.summary) queryClient.setQueryData(["summary"], data.summary);
+    if (data.passes) queryClient.setQueryData(["passes"], data.passes);
+    if (data.forecast) queryClient.setQueryData(["forecast"], data.forecast);
+    if (Array.isArray(data.all_exceptions)) {
+      queryClient.setQueryData(["exceptions"], {
+        count: data.all_exceptions.length,
+        exceptions: data.all_exceptions,
+      });
+    }
+    if (data.graph?.nodes && data.graph?.edges) {
+      queryClient.setQueryData(["graph"], data.graph);
+    }
+    void queryClient.invalidateQueries();
+  }
 
   const upload = useMutation({
     mutationFn: async (selected: File[]) => {
@@ -32,34 +57,52 @@ export function UploadPanel() {
         );
       }
       if (!res.ok) throw new Error(`Upload failed (${res.status})`);
-      return res.json().catch(() => ({}));
+      return (await res.json().catch(() => ({}))) as UploadResult;
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries();
+    onSuccess: (data) => {
+      applyResult(data);
       setFiles([]);
       toast.success("Files uploaded — results refreshed");
     },
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const reset = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/proxy/data/reset", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      });
+      if (!res.ok) throw new Error(`Reset failed (${res.status})`);
+      return (await res.json().catch(() => ({}))) as UploadResult;
+    },
+    onSuccess: (data) => {
+      applyResult(data);
+      setFiles([]);
+      toast.success("Back to the sample data");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   function add(list: FileList | null) {
     if (!list) return;
-    const allowed = Array.from(list).filter((f) =>
-      /\.(csv|xls|xlsx|pdf)$/i.test(f.name),
-    );
+    const allowed = Array.from(list).filter((f) => ALLOWED.test(f.name));
     if (allowed.length !== (list?.length ?? 0)) {
-      toast.error("Only CSV, Excel and PDF files are supported");
+      toast.error("Only CSV, Excel, TXT and JSON files are supported");
     }
     setFiles((prev) => [...prev, ...allowed]);
   }
+
 
   return (
     <div className="panel p-7">
       <h2 className="text-xl font-semibold text-foreground">Provide your own data</h2>
       <p className="mt-2 text-sm text-muted-foreground">
         Drop in your settlement report, bank statement, GST invoices, sales ledger or reserve
-        ledger. CSV, Excel and PDF are all accepted.
+        ledger. CSV, Excel, TXT and JSON are all accepted.
       </p>
+
 
       <div
         onDragOver={(e) => {
@@ -86,7 +129,7 @@ export function UploadPanel() {
       >
         <Upload className="size-5 text-muted-foreground" aria-hidden />
         <p className="mt-3 text-sm text-foreground">Drag files here, or click to browse</p>
-        <p className="mt-1 text-xs text-muted-foreground">CSV · XLS · XLSX · PDF</p>
+        <p className="mt-1 text-xs text-muted-foreground">CSV · XLS · XLSX · TXT · JSON</p>
         <input
           ref={inputRef}
           type="file"
@@ -128,15 +171,27 @@ export function UploadPanel() {
         </ul>
       )}
 
-      <button
-        type="button"
-        disabled={files.length === 0 || upload.isPending}
-        onClick={() => upload.mutate(files)}
-        className="mt-6 inline-flex items-center gap-2 rounded-full border border-border bg-foreground px-6 py-2.5 text-sm font-medium text-background transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        {upload.isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-        {upload.isPending ? "Uploading…" : "Upload & run pipeline"}
-      </button>
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          disabled={files.length === 0 || upload.isPending}
+          onClick={() => upload.mutate(files)}
+          className="inline-flex items-center gap-2 rounded-full border border-border bg-foreground px-6 py-2.5 text-sm font-medium text-background transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {upload.isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          {upload.isPending ? "Uploading…" : "Upload & run pipeline"}
+        </button>
+        <button
+          type="button"
+          disabled={reset.isPending}
+          onClick={() => reset.mutate()}
+          className="inline-flex items-center gap-2 rounded-full border border-border px-6 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {reset.isPending ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
+          Reset to demo data
+        </button>
+      </div>
+
     </div>
   );
 }
